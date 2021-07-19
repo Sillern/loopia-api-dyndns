@@ -1,0 +1,22 @@
+{
+    "username": "api_user@loopiaapi",
+    "password": "the_password",
+    "domains": [
+        {
+            "name": "example.com", 
+            "subdomain": "@"
+        },
+        {
+            "name": "example2.se", 
+            "subdomain": "@"
+        },
+        {
+            "name": "example3.com", 
+            "subdomain": "subdomain"
+        },
+        {
+            "name": "example4.com", 
+            "subdomain": "multiple.subdomains"
+        }
+    ]
+}

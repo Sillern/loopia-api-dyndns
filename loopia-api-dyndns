@@ -20,23 +20,40 @@ import xmlrpc.client
 def print_error(msg):
     print(msg, file=sys.stderr)
 
+def get_config(configuration_filepath):
+
+    config_names = {
+        "username": "LOOPIA_API_USERNAME",
+        "password": "LOOPIA_API_PASSWORD",
+        "domains": "LOOPIA_API_DOMAINS",
+    }
+
+    invalid_config = False
+    for key, value in config_names.items():
+        if value in os.environ:
+            config[key] = os.environ[value]
+        else:
+            invalid_config = True
+            break
+
+    # Convert a colon and comma separated list of tuples from
+    # the environment variable LOOPIA_API_DOMAINS
+    if not invalid_config:
+        domains = config['domains'].split(",")
+        domain_list = []
+        for domain in test_domains.split(","):
+            subdomain, name = domain.split(":")
+            domain_list.append({"name": name, "subdomain": subdomain})
+        config['domains'] = domain_list
+
+    if invalid_config:
+        import json
+        with open(configuration_filepath, "r") as f:
+            config = json.load(f)
+
+    return config
 
 class Config:
-    try:
-        username = os.environ["LOOPIA_API_USERNAME"]
-        password = os.environ["LOOPIA_API_PASSWORD"]
-        domain = os.environ["LOOPIA_DOMAIN"]
-        subdomain = os.environ["LOOPIA_SUBDOMAIN"]
-    except KeyError as exception:
-        print_error(
-            "Could not read configuration from environment variable: {exception}".format(
-                exception=exception,
-            )
-        )
-        quit(1)
-
-    fqdn = domain if subdomain == "@" else subdomain + "." + domain
-
     check_ipv4_url = "https://api-ipv4.ip.sb/ip"
     check_ipv6_url = "https://api-ipv6.ip.sb/ip"
     loopia_api_xml_rpc_url = "https://api.loopia.se/RPCSERV"
@@ -89,13 +106,13 @@ def get_public_ipv6():
         quit(8)
 
 
-def get_records(recordType):
+def get_records(username, password, domain, subdomain, recordType):
     try:
         zone_records = client.getZoneRecords(
-            Config.username,
-            Config.password,
-            Config.domain,
-            Config.subdomain,
+            username,
+            password,
+            domain,
+            subdomain,
         )
     except Exception as exception:
         api_error(exception)
@@ -104,7 +121,7 @@ def get_records(recordType):
     return [d for d in zone_records if d["type"] == recordType]
 
 
-def update_record(value, record):
+def update_record(username, password, domain, subdomain, value, record):
     # Does the record need updating?
     if record["rdata"] != value:
         # Setting record_id updates an existing record.
@@ -118,10 +135,10 @@ def update_record(value, record):
 
         try:
             status = client.updateZoneRecord(
-                Config.username,
-                Config.password,
-                Config.domain,
-                Config.subdomain,
+                username,
+                password,
+                domain,
+                subdomain,
                 new_record,
             )
         except Exception as exception:
@@ -129,9 +146,11 @@ def update_record(value, record):
     else:
         status = "No change"
 
+    fqdn = domain if subdomain == "@" else subdomain + "." + domain
+
     print(
         "{fqdn} {recordType}: {status} ({value})".format(
-            fqdn=Config.fqdn,
+            fqdn=fqdn,
             recordType=record["type"],
             status=status,
             value=value,
@@ -139,25 +158,34 @@ def update_record(value, record):
     )
 
 
-def check_and_update_record(recordType, value):
+def check_and_update_record(username, password, domain, subdomain, recordType, value):
     """Fetch a single record and update it"""
-    records = get_records(recordType)
+    records = get_records(username, password, domain, subdomain, recordType)
     recordCount = len(records)
 
     if recordCount != 1:
+        fqdn = domain if subdomain == "@" else subdomain + "." + domain
         print_error(
             "Require exactly one {recordType} record for {fqdn}, but found {recordCount}.".format(
-                fqdn=Config.fqdn,
+                fqdn=fqdn,
                 recordCount=recordCount,
                 recordType=recordType,
             )
         )
         quit(4)
 
-    update_record(value, records[0])
+    update_record(username, password, domain, subdomain, value, records[0])
 
 
 if __name__ == "__main__":
+
+    if len(sys.argv) > 1:
+        configuration_filepath = sys.argv[1]
+    else:
+        configuration_filepath = "loopia-api-dyndns.json"
+
+    config = get_config(configuration_filepath)
+
     # Build XML RPC client.
     client = xmlrpc.client.ServerProxy(
         uri=Config.loopia_api_xml_rpc_url,
@@ -166,7 +194,9 @@ if __name__ == "__main__":
 
     # Dynamic DNS updates.
     public_ipv4 = get_public_ipv4()
-    check_and_update_record("A", public_ipv4)
+    for domain in config['domains']:
+        check_and_update_record(config['username'], config['password'], domain['name'], domain['subdomain'], "A", public_ipv4)
 
     public_ipv6 = get_public_ipv6()
-    check_and_update_record("AAAA", public_ipv6)
+    for domain, subdomain in config['domains']:
+        check_and_update_record(config['username'], config['password'], domain['name'], domain['subdomain'], "AAAA", public_ipv6)

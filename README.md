@@ -59,8 +59,13 @@ Set your own values using environment variables before executing the script.
 | --------------------- | :------: | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `LOOPIA_API_USERNAME` | &check;  | `someone@loopiaapi`                 | Username chosen when creating the API user. Always ends with `@loopiaapi`.                                                                                                                                        |
 | `LOOPIA_API_PASSWORD` | &check;  |                                     | Password chosen when creating the API user.                                                                                                                                                                       |
-| `LOOPIA_DOMAIN`       | &check;  | `example.com`                       | The [second-level domain name](https://en.wikipedia.org/wiki/Second-level_domain) (SLD) to update. Required also when updating only a specific subdomain.                                                         |
-| `LOOPIA_SUBDOMAIN`    | &check;  | `my-computer`, `server01.farm`, `@` | The specific [subdomain](https://en.wikipedia.org/wiki/Domain_name#Second-level_and_lower_level_domains) to update. May be dot-separated to specify a deeper subdomain. To update the SLD, set this value to `@`. |
+| `LOOPIA_DOMAINS`       | &check;  | `@:example.com,my-computer:example.com`    | A list of subdomain/domain pairs. Each pair contains an [second-level domain name](https://en.wikipedia.org/wiki/Second-level_domain) (SLD) to update and a [subdomain](https://en.wikipedia.org/wiki/Domain_name#Second-level_and_lower_level_domains). The subdomain may be dot-separated to specify a deeper subdomain. To update the SLD, set this value to `@`. |
+
+
+Also supports a json file as configuration, see example file.
+
+If executed with an argument, it will use the argument as the path to the configuration-json file
+`./loopia-api-dns /etc/loopia-api-dns.json`
 
 ## Usage
 
